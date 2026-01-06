@@ -26,6 +26,7 @@ func newStartCommand(fs afero.Fs, p *config.Params) *cobra.Command {
 	var (
 		wait            bool
 		pollingInterval time.Duration
+		uuidOverride    string
 	)
 
 	cmd := &cobra.Command{
@@ -35,7 +36,10 @@ func newStartCommand(fs afero.Fs, p *config.Params) *cobra.Command {
 		
 This command starts the process of restoring topics from the archival bucket.
 If the wait flag (--wait/-w) is set, the command will poll the status of the
-recovery process until it's finished.`,
+recovery process until it's finished.
+
+Use --cluster-uuid-override if the cluster was re-initialized after the backup,
+causing multiple cluster UUIDs to exist in the bucket.`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, _ []string) {
 			p, err := p.LoadVirtualProfile(fs)
@@ -47,7 +51,7 @@ recovery process until it's finished.`,
 
 			ctx := cmd.Context()
 
-			_, err = client.StartAutomatedRecovery(ctx)
+			_, err = client.StartAutomatedRecovery(ctx, uuidOverride)
 			var he *rpadmin.HTTPResponseError
 			if errors.As(err, &he) {
 				if he.Response.StatusCode == 404 {
@@ -113,6 +117,7 @@ recovery process until it's finished.`,
 	cmd.Flags().MarkDeprecated("topic-name-pattern", "Not supported")
 	cmd.Flags().BoolVarP(&wait, "wait", "w", false, "Wait until auto-restore is complete")
 	cmd.Flags().DurationVar(&pollingInterval, "polling-interval", 5*time.Second, "The status check interval (e.g. '30s', '1.5m'); ignored if --wait is not used")
+	cmd.Flags().StringVar(&uuidOverride, "cluster-uuid-override", "", "Cluster UUID to restore from")
 
 	return cmd
 }
